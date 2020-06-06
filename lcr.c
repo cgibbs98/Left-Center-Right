@@ -3,27 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-//Ifdef loads respective OS specific libraries for sleep() function based on OS used with application
-#ifdef _WIN32
-	#include <Windows.h>
-#else
-	#include <unistd.h>
-#endif
+#include <unistd.h>
 
 //Constants for fixed values that will never be changed
 #define STATCOUNT 7
 #define BORDER "-------------------------------"
 #define MAXPLAYERSIZE 26
 #define MAXDIGITS 12
+#define MAXFILELOAD 128
 const int FIXEDWIDTHS[] = {2, 18, 15, 14, 12, 13, 13, 16};
 
 //Global variables that will be changed throughout
 int playercount;
 int chipcount;
 int pauseenabled;
+double longpause;
+double shortpause;
+int minplayerrand;
+int maxplayerrand;
+int minchiprand;
+int maxchiprand;
 int maxwidths[STATCOUNT];
-int runaverages[STATCOUNT];
 int smallname;
 
 //Struct for player which included their name and chip count
@@ -33,12 +33,21 @@ struct Player{
 	int chips;
 	//Stats Values Array
 	int stats[STATCOUNT];
-	//stats[0] = leftcount, stats[1] = centercount, stats[2] = rightcount, stats[3] = dotcount, stats[4] = rollcount, stats[5] = turncount, stats[6] = skipcount
+	//stats[0] = leftcount,
+	//stats[1] = centercount,
+	//stats[2] = rightcount,
+	//stats[3] = dotcount,
+	//stats[4] = rollcount,
+	//stats[5] = turncount,
+	//stats[6] = skipcount;
 };
 
 //Function Definitions
+void loadDefaults();
+void setDefinedDefaults();
 void settingsMenu();
 void changeCounts(int sel);
+void configureStartup();
 void viewInstructions();
 int min(int a, int b);
 int max(int a, int b);
@@ -53,25 +62,22 @@ void printStatistics(struct Player* turns);
 //Main function
 int main(){
 
-	//Set default player and chip counts upon startup
-	playercount = 10;
-	chipcount = 10;
-	pauseenabled = 0;
-	printf("\nWelcome to Left Center Right!\n");
+	//Load configuration for all default variables
+	loadDefaults();
+	printf("\n\nWelcome to the Left Center Right Simulator!\n");
 
 	//Menu for game along with current settings
 	int choice = 0;
-	while(choice != 5){
+	while(choice != 4){
 
 		//Menu text
 		printf("\nPlayer Count: %d \t Chip Count: %d", playercount, chipcount);
 		printf("\nSelect a Choice Below:\n");
 		printf("\n%s", BORDER);
-		printf("\n1. Play with Above Settings");
+		printf("\n1. Run Simulation");
 		printf("\n2. View Instructions");
-		printf("\n3. Run Simiulation");
-		printf("\n4. Change Settings");
-		printf("\n5. Quit");
+		printf("\n3. Change Settings");
+		printf("\n4. Quit");
 		printf("\n%s", BORDER);
 
 		//Menu choice input
@@ -82,23 +88,18 @@ int main(){
 		switch(choice){
 			//Play Game with current settings for player and chip counts
 			case 1:
-				pauseenabled = 1;
 				playGame();
 				break;
 			//View game instructions
 			case 2:
 				viewInstructions();
 				break;
-			//Run Simulation mode of game
-			case 3:
-				playGame();
-				break;
 			//Change settings and counts
-			case 4:
+			case 3:
 				settingsMenu();
 				break;
 			//Quit game
-			case 5:
+			case 4:
 				printf("\nGoodbye\n");
 				break;
 			//Invalid option
@@ -123,6 +124,107 @@ return 0;
 
 
 
+//Function that loads defulats for pause enabled, player + chip counts, rand ranges, and pause lengths
+void loadDefaults(){
+	
+	//Loads file and calls function to set defined defaults and return to main function if file doesn't load
+	printf("\nLoading game paramters");
+	FILE *fp;
+	if(fp = fopen("config.txt", "r")){
+		//Gathers every variable needed
+		char fbuffer[MAXFILELOAD];
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token1 = strtok(fbuffer, " ");
+		token1 = strtok(NULL, " = ");
+		playercount = atoi(token1);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token2 = strtok(fbuffer, " ");
+		token2 = strtok(NULL, " = ");
+		chipcount = atoi(token2);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token3 = strtok(fbuffer, " ");
+		token3 = strtok(NULL, " = ");
+		pauseenabled = atoi(token3);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token4 = strtok(fbuffer, " ");
+		token4 = strtok(NULL, " = ");
+		minplayerrand = atoi(token4);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token5 = strtok(fbuffer, " ");
+		token5 = strtok(NULL, " = ");
+		maxplayerrand = atoi(token5);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token6 = strtok(fbuffer, " ");
+		token6 = strtok(NULL, " = ");
+		minchiprand = atoi(token6);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token7 = strtok(fbuffer, " ");
+		token7 = strtok(NULL, " = ");
+		maxchiprand = atoi(token7);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token8 = strtok(fbuffer, " ");
+		token8 = strtok(NULL, " = ");
+		longpause = atof(token8);
+		
+		fgets(fbuffer, MAXFILELOAD, (FILE*)fp);
+		char* token9 = strtok(fbuffer, " ");
+		token9 = strtok(NULL, " = ");
+		shortpause = atof(token9);
+		
+		//Closes file once done loading every value
+		fclose(fp);
+	}
+	else{
+		setDefinedDefaults();
+		return;
+	}
+	
+}//End of loadDefaults
+
+//Function that loads defined defaults if file is non-existant
+void setDefinedDefaults(){
+	
+	//Manually sets defined values to pre defined values and creates new file
+	printf("\nCould not find configuration file; Setting program defined defaults and creating new configuration file instead.");
+	FILE *fp = fopen("config.txt", "w+"); 
+	playercount = 5;
+	fprintf(fp, "PLAYERCOUNT = %d\n", playercount);
+	chipcount = 3;
+	fprintf(fp, "CHIPCOUNT = %d\n", chipcount);
+	pauseenabled = 0;
+	fprintf(fp, "PAUSEENABLED = %d\n", pauseenabled);
+	minplayerrand = 3;
+	fprintf(fp, "MINPLAYERRAND = %d\n", minplayerrand);
+	maxplayerrand = 9;
+	fprintf(fp, "MAXPLAYERRAND = %d\n", maxplayerrand);
+	minchiprand = 1;
+	fprintf(fp, "MINCHIPRAND = %d\n", minchiprand);
+	maxchiprand = 9;
+	fprintf(fp, "MAXCHIPRAND = %d\n", maxchiprand);
+	longpause = 3.0;
+	fprintf(fp, "LONGPAUSE = %f\n", longpause);
+	shortpause = 1.5;
+	fprintf(fp, "SHORTPAUSE = %f", shortpause);
+	fclose(fp);
+	
+}//End of setDefinedDefaults
+
+
+
+
+
+
+
+
+
+
 //Settings menu for changing count and other features
 void settingsMenu(){
 	
@@ -136,12 +238,12 @@ void settingsMenu(){
 		printf("\n%s", BORDER);
 		printf("\n1. Set Random Counts");
 		printf("\n2. Define Counts");
-		printf("\n3. Reset Counts");
+		printf("\n3. Reset to Default Counts");
 		if(pauseenabled == 1){
-			printf("\n4. Disable Simiulation Pausing");
+			printf("\n4. Disable Simulation Pausing");
 		}//End of if
 		else{
-			printf("\n4. Enable Simiulation Pausing");
+			printf("\n4. Enable Simulation Pausing");
 		}//End of else
 		printf("\n5. Configure Startup Parameters");
 		printf("\n6. Return to Main Menu");
@@ -161,7 +263,7 @@ void settingsMenu(){
 			case 2:
 				changeCounts(2);
 				break;
-			//Reset default player and chip counts
+			//Reset to default player and chip counts
 			case 3:
 				changeCounts(3);
 				break;
@@ -171,7 +273,7 @@ void settingsMenu(){
 				break;
 			//Run configuration mode to change startup and ingame values
 			case 5:
-				//here
+				configureStartup();
 				break;
 			//Return to main menu
 			case 6:
@@ -192,8 +294,8 @@ void changeCounts(int sel){
 	if(sel == 1){
 		//Sets current system time as the random seed for random player and chip counts
 		srand(time(0));
-		playercount = randomInt(3, 9);
-		chipcount = randomInt(1, 9);
+		playercount = randomInt(minplayerrand, maxplayerrand);
+		chipcount = randomInt(minchiprand, maxchiprand);
 	}//End of if
 
 	//Else if function will prompt user for counts
@@ -209,7 +311,7 @@ void changeCounts(int sel){
 		scanf("%d", &playercount);
 		if(playercount < 3){
 			playercount = tp;
-			printf("\nAtleast 3 players are required. Returning to main menu\n");
+			printf("\nAtleast 3 players are required. Returning to settings menu\n");
 			return;
 		}//End of if
 		else{
@@ -221,7 +323,7 @@ void changeCounts(int sel){
 		scanf("%d", &chipcount);
 		if(chipcount < 1){
 			chipcount = tc;
-			printf("\nAtleast 1 chip per player is required. Returning to main menu\n");
+			printf("\nAtleast 1 chip per player is required. Returning to settings menu\n");
 			return;
 		}//End of if
 		else{
@@ -230,22 +332,127 @@ void changeCounts(int sel){
 		printf("\n");
 
 	}//End of else if
-
-	//Else if function will set default counts based on declared constants
+	
+	//Else function resets to default counts
 	else{
 		playercount = 5;
 		chipcount = 3;
-		printf("\nReset Player and Chip Counts to Default Settings\n");
 	}//End of else
 	return;
 
 }//End of changeCounts
 
+//Change startup paramters/values for config.txt file
+void configureStartup(){
+
+	//Prompts the user for each input
+	int p1 = 0;
+	printf("\n1. Set Player Count (Atleast 3 players are required)");
+	printf("\n");
+	scanf("%d", &p1);
+	if(p1 < 3){
+		printf("\nAtleast 3 players are required. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p2 = 0;
+	printf("\n2. Set Chip Count (Atleast 1 chip per player is required)");
+	printf("\n");
+	scanf("%d", &p2);
+	if(p2 < 1){
+		printf("\nAtleast 1 chip per player is required. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p3 = 0;
+	printf("\n3. Set Whether Simulation Pausing will be Enabled or Not (Must be 1 for Enabled, 0 for Disabled)");
+	printf("\n");
+	scanf("%d", &p3);
+	if((p3 < 0) || (p3 > 1)){
+		printf("\nMust be 1 for Enabled, 0 for Disabled. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p4 = 0;
+	printf("\n4. Set Minimum Value Generated from Random Player Count Function (Atleast 3 players are required)");
+	printf("\n");
+	scanf("%d", &p4);
+	if(p4 < 3){
+		printf("\nAtleast 3 players are required. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p5 = 0;
+	printf("\n5. Set Maximum Value Generated from Random Player Count Function (Atleast 3 players are required and > minimum value)");
+	printf("\n");
+	scanf("%d", &p5);
+	if(p5 < 3){
+		printf("\nAtleast 3 players are required. Returning to settings menu\n");
+		return;
+	}//End of if
+	if(p5 <= p4){
+		printf("\nValue must be > minimum value. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p6 = 0;
+	printf("\n6. Set Minimum Value Generated from Random Chip Count Function (Atleast 1 chip per player is required)");
+	printf("\n");
+	scanf("%d", &p6);
+	if(p6 < 1){
+		printf("\nAtleast 1 chip per player is required. Returning to settings menu\n");
+		return;
+	}//End of if
+	int p7 = 0;
+	printf("\n7. Set Maximum Value Generated from Random Chip Count Function (Atleast 1 chip per player is required and > minimum value)");
+	printf("\n");
+	scanf("%d", &p7);
+	if(p7 < 1){
+		printf("\nAtleast 1 chip per player is required. Returning to settings menu\n");
+		return;
+	}//End of if
+	if(p7 <= p6){
+		printf("\nValue must be > minimum value. Returning to settings menu\n");
+		return;
+	}//End of if
+	double p8 = 0;
+	printf("\n8. Set Value for Amount of Seconds for Long Pauses (Must be > 0.0 seconds)");
+	printf("\n");
+	scanf("%lf", &p8);
+	if(p8 < 0.0){
+		printf("\nValue must be > 0.0 seconds. Returning to settings menu\n");
+		return;
+	}//End of if
+	double p9 = 0;
+	printf("\n9. Set Value for Amount of Seconds for Short Pauses (Must be > 0.0 seconds and < long pause value)");
+	printf("\n");
+	scanf("%lf", &p9);
+	if(p9 < 0.0){
+		printf("\nValue must be > 0.0 seconds. Returning to settings menu\n");
+		return;
+	}//End of if
+	if(p9 >= p8){
+		printf("\nValue must be < long pause value. Returning to settings menu\n");
+		return;
+	}//End of if
+
+	//Saves new values in config.txt file
+	printf("\nSaving changes to config.txt file\n");
+	printf("Successfully saved changes. (Changes take effect next time program is executed)\n");
+	FILE *fp = fopen("config.txt", "w+");
+	fprintf(fp, "PLAYERCOUNT = %d\n", p1);
+	fprintf(fp, "CHIPCOUNT = %d\n", p2);
+	fprintf(fp, "PAUSEENABLED = %d\n", p3);
+	fprintf(fp, "MINPLAYERRAND = %d\n", p4);
+	fprintf(fp, "MAXPLAYERRAND = %d\n", p5);
+	fprintf(fp, "MINCHIPRAND = %d\n", p6);
+	fprintf(fp, "MAXCHIPRAND = %d\n", p7);
+	fprintf(fp, "LONGPAUSE = %lf\n", p8);
+	fprintf(fp, "SHORTPAUSE = %lf", p9);
+	fclose(fp);
+
+}//End of configureStartup
+
 //View game instructions
 void viewInstructions(){
 
 	//Prints game instructions to user and prompts user to enter to go back
-	printf("\nLeft Center Right is a game where your goal is to win an entire pool of chips");
+	printf("\nLeft Center Right is a game where your goal is to win an entire pool of chips which this program will simulate");
 	printf("\nEach player take turns rolling 1 dice per chip up to the starting chip count where a 50%% chance of a * will occur and another 50%% for either a L, C, or R will occur");
 	printf("\n* means you don't lose any chips, C means a chip goes into the center chip pool, L and R means a chip is given to the player to the left and right of you respectively (Previous and Next player)");
 	printf("\nIf a player has less chips than the starting chip count, the player only rolls 1 dice per chips remaining that turn");
@@ -275,7 +482,7 @@ int min(int a, int b){
 
 }//End of min
 
-//Maximum function for dice count and name length
+//Maximum function for highest count and name length
 int max(int a, int b){
 
 	//If count's string length > highest string length, return new highest count or name length; Otherwise keep current count or name length
@@ -292,10 +499,10 @@ double average(struct Player* turns, int index){
 	//Uses a loop to calculate average and divides it by size before returning it to the user
 	double avg = 0;
 	int i = 0;
-	for(i = 0; i < STATCOUNT; i++){
+	for(i = 0; i < playercount; i++){
 		avg += turns[i].stats[index];
 	}//End of for
-	avg /= (double)STATCOUNT;
+	avg /= (double)playercount;
 	return avg;
 	
 }//End of average
@@ -312,14 +519,10 @@ int randomInt(int min, int max){
 //Pause function for pausing execution to allow user to keep track of the game
 void pauseGame(double sec){
 
-	//If pausing is enabled Ifdef calls respective sleep function defined by OS after printing string form before the function call
+	//If pausing is enabled usleep function is called after printing string form before the function call
 	if(pauseenabled == 1){
 		fflush(stdout);
-		#ifdef _WIN32
-			Sleep((int)(sec*1000));
-		#else
-			usleep((int)(sec*1000000));
-		#endif
+		usleep((int)(sec*1000000));
 	}//End of if
 
 }//End of pauseGame
@@ -331,7 +534,6 @@ void resetArray(){
 	int i = 0;
 	for(i = 0; i < STATCOUNT; i++){
 		maxwidths[i] = 0;
-		runaverages[i] = 0;
 	}//End of for
 	
 }//End of resetArray
@@ -394,7 +596,7 @@ void playGame(){
 		printf("\nTurn: %d",turncount);
 		printf("\nCenter Chip Pool: %d/%d",chippool, maxpool);
 		printf("\nCurrent Player: %s \t Current Chip Count: %d", turns[(i%playercount)].name, turns[(i%playercount)].chips);
-		pauseGame(3);
+		pauseGame(longpause);
 
 		//Skips player since they don't have any chips remaining with a small pause
 		if(turns[(i%playercount)].chips == 0){
@@ -402,7 +604,7 @@ void playGame(){
 			sprintf(numcheck, "%d", turns[(i % playercount)].stats[6]);
 			maxwidths[6] = max(maxwidths[6], strlen(numcheck));
 			printf("\nTurn Skipped");
-			pauseGame(3);
+			pauseGame(longpause);
 		}//End of if
 
 		//Allows current player to roll respective number of dice where results are stored in dynamic array with a small pause
@@ -440,7 +642,7 @@ void playGame(){
 				}//End of else
 
 			}//End of for
-			pauseGame(1.5);
+			pauseGame(shortpause);
 
 			//Performs respective LCR Actions with a small pause
 			for(j = 0; j < dicecount; j++){
@@ -483,7 +685,7 @@ void playGame(){
 				}//End of else
 
 			}//End of for
-			pauseGame(3);
+			pauseGame(longpause);
 
 			//Frees memory from dynamic array once all rolls have occured
 			free(rolls);
