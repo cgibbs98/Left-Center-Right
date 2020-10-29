@@ -5,6 +5,9 @@
 #include <time.h>
 #include <unistd.h>
 
+//Included headers
+#include "utilities.h"
+
 //Constants for fixed values that will never be changed
 #define STATCOUNT 7
 #define BORDER "-------------------------------"
@@ -27,7 +30,7 @@ int maxwidths[STATCOUNT];
 int smallname;
 
 //Struct for player which included their name and chip count
-struct Player{
+typedef struct{
 	//Game Values
 	char name[MAXPLAYERSIZE];
 	int chips;
@@ -40,7 +43,7 @@ struct Player{
 	//stats[4] = rollcount,
 	//stats[5] = turncount,
 	//stats[6] = skipcount;
-};
+}Player;
 
 //Function Definitions
 void loadDefaults();
@@ -49,15 +52,11 @@ void settingsMenu();
 void changeCounts(int sel);
 void configureStartup();
 void viewInstructions();
-int min(int a, int b);
-int max(int a, int b);
-double average(struct Player* turns, int index);
-int randomInt(int min, int max);
-void pauseGame(double sec);
 void resetArray();
-void playGame();
-void endGameMenu(struct Player* turns);
-void printStatistics(struct Player* turns);
+void getIntArray(int* array, Player* turns, int index);
+void runSim();
+void endGameMenu(Player* turns);
+void printStatistics(Player* turns);
 
 //Main function
 int main(){
@@ -88,7 +87,7 @@ int main(){
 		switch(choice){
 			//Play Game with current settings for player and chip counts
 			case 1:
-				playGame();
+				runSim();
 				break;
 			//View game instructions
 			case 2:
@@ -462,71 +461,6 @@ void viewInstructions(){
 
 }//End of viewInstructions
 
-
-
-
-
-
-
-
-
-
-//Minimum function for dice count
-int min(int a, int b){
-
-	//If current player's chips < initial chipcount, return current player's chips; Otherwise return initial chipcount
-	if(a < b){
-		return a;
-	}//End of if
-	return b;
-
-}//End of min
-
-//Maximum function for highest count and name length
-int max(int a, int b){
-
-	//If count's string length > highest string length, return new highest count or name length; Otherwise keep current count or name length
-	if(a > b){
-		return a;
-	}//End of if
-	return b;
-
-}//End of max
-
-//Average function to calculate average of stats
-double average(struct Player* turns, int index){
-	
-	//Uses a loop to calculate average and divides it by size before returning it to the user
-	double avg = 0;
-	int i = 0;
-	for(i = 0; i < playercount; i++){
-		avg += turns[i].stats[index];
-	}//End of for
-	avg /= (double)playercount;
-	return avg;
-	
-}//End of average
-
-//Random int function for various actions involving a random number
-int randomInt(int min, int max){
-
-	//Uses system time seed from playGame() to determine a random number within range of min and max
-	int r = rand() % (min - (max + 1)) + min;
-	return r;
-
-}//End of randomInt
-
-//Pause function for pausing execution to allow user to keep track of the game
-void pauseGame(double sec){
-
-	//If pausing is enabled usleep function is called after printing string form before the function call
-	if(pauseenabled == 1){
-		fflush(stdout);
-		usleep((int)(sec*1000000));
-	}//End of if
-
-}//End of pauseGame
-
 //Function to reset statsics array widths amd averages to 0
 void resetArray(){
 	
@@ -538,6 +472,16 @@ void resetArray(){
 	
 }//End of resetArray
 
+//Function that will create and return an array of one statistic for every player
+void getIntArray(int* array, Player* turns, int index){
+	
+	//Loop that will copy index of existing array and add it to new dynamic array
+	int i = 0;
+	for(i = 0; i < playercount; i++){
+		array[i] = turns[i].stats[index];
+	}//End of for
+	
+}//End of getIntArray
 
 
 
@@ -546,8 +490,10 @@ void resetArray(){
 
 
 
-//Play game
-void playGame(){
+
+
+//Run Simulation
+void runSim(){
 
 	//Sets current system time as the random seed for the game and resets array used for tracking widths, name sizes, and averages for statistics
 	smallname = 8;
@@ -555,7 +501,7 @@ void playGame(){
 	srand(time(0));
 
 	//Create players by dynamically creating array and filling out pregame counts
-	struct Player* turns = calloc(playercount, sizeof(struct Player));
+	Player* turns = calloc(playercount, sizeof(Player));
 	int i = 0;
 	int j = 0;
 	char num[MAXDIGITS];
@@ -596,7 +542,7 @@ void playGame(){
 		printf("\nTurn: %d",turncount);
 		printf("\nCenter Chip Pool: %d/%d",chippool, maxpool);
 		printf("\nCurrent Player: %s \t Current Chip Count: %d", turns[(i%playercount)].name, turns[(i%playercount)].chips);
-		pauseGame(longpause);
+		pauseSim(longpause, pauseenabled);
 
 		//Skips player since they don't have any chips remaining with a small pause
 		if(turns[(i%playercount)].chips == 0){
@@ -604,7 +550,7 @@ void playGame(){
 			sprintf(numcheck, "%d", turns[(i % playercount)].stats[6]);
 			maxwidths[6] = max(maxwidths[6], strlen(numcheck));
 			printf("\nTurn Skipped");
-			pauseGame(longpause);
+			pauseSim(longpause, pauseenabled);
 		}//End of if
 
 		//Allows current player to roll respective number of dice where results are stored in dynamic array with a small pause
@@ -642,7 +588,7 @@ void playGame(){
 				}//End of else
 
 			}//End of for
-			pauseGame(shortpause);
+			pauseSim(shortpause, pauseenabled);
 
 			//Performs respective LCR Actions with a small pause
 			for(j = 0; j < dicecount; j++){
@@ -685,7 +631,7 @@ void playGame(){
 				}//End of else
 
 			}//End of for
-			pauseGame(longpause);
+			pauseSim(longpause, pauseenabled);
 
 			//Frees memory from dynamic array once all rolls have occured
 			free(rolls);
@@ -738,7 +684,7 @@ void playGame(){
 
 
 //Menu that is disp[layed once the game ends
-void endGameMenu(struct Player* turns){
+void endGameMenu(Player* turns){
 	
 	//Menu for game along with current settings
 	int choice = 0;
@@ -772,14 +718,13 @@ void endGameMenu(struct Player* turns){
 	
 	//If user chooses to play again
 	if(choice == 1){
-		playGame();
+		runSim();
 	}//End of if
 	
 }//End of endGameMenu
 
-
 //Function that prints statistics for the last game
-void printStatistics(struct Player* turns){
+void printStatistics(Player* turns){
 	
 	//Prints each player's stats with one row for each player and the average at the bottom
 	int i = 0;
@@ -787,7 +732,7 @@ void printStatistics(struct Player* turns){
 	int width = 0;
 	char statprint[MAXDIGITS];
 	printf("\n| Player's Name | Left Count | Center Count | Right Count | Dot Count | Dice Rolls | Good Turns | Skipped Turns |\n\n");
-	for(i = 0; i < (playercount+1); i++){
+	for(i = 0; i < (playercount+3); i++){
 		
 		//Calculates and prints averages of each stat to the screen
 		if(i == playercount){
@@ -798,15 +743,62 @@ void printStatistics(struct Player* turns){
 			//Calculates and prints each average to the screen
 			for(j = 0; j < STATCOUNT; j++){
 				
-				//Converts stat to string and calculates spacing needed on screen
-				sprintf(statprint, "%.*f", maxwidths[j], average(turns, j));
+				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
+				int* intarray = calloc(playercount, sizeof(int));
+				getIntArray(intarray, turns, j);
+				sprintf(statprint, "%.*f", maxwidths[j], average(intarray, playercount));
 				width = FIXEDWIDTHS[(j+1)];
 				
-				//Prints a rounded version of the average to the user
+				//Prints a rounded version of the average to the user and frees dynamic array of values
 				printf("%*s", (int)width, statprint);
+				free(intarray);
 			}//End of for
 			
 		}//End of if
+		
+		//Calculates and prints median of each stat to the screen
+		else if(i == playercount+1){
+			
+			//Prints median label
+			printf("\n%*s", (int)(FIXEDWIDTHS[0] + 8), "Median:");
+			
+			//Calculates and prints each median to the screen
+			for(j = 0; j < STATCOUNT; j++){
+				
+				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
+				int* intarray = calloc(playercount, sizeof(int));
+				getIntArray(intarray, turns, j);
+				sprintf(statprint, "%.*f", maxwidths[j], median(intarray, playercount));
+				width = FIXEDWIDTHS[(j+1)];
+				
+				//Prints a rounded version of the median to the user and frees dynamic array of values
+				printf("%*s", (int)width, statprint);
+				free(intarray);
+			}//End of for
+			
+		}//End of else if
+		
+		//Calculates and prints range of each stat to the screen
+		else if(i == playercount+2){
+			
+			//Prints range label
+			printf("\n%*s", (int)(FIXEDWIDTHS[0] + 8), "Range:");
+			
+			//Calculates and prints each range to the screen
+			for(j = 0; j < STATCOUNT; j++){
+				
+				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
+				int* intarray = calloc(playercount, sizeof(int));
+				getIntArray(intarray, turns, j);
+				sprintf(statprint, "%.*f", maxwidths[j], range(intarray, playercount));
+				width = FIXEDWIDTHS[(j+1)];
+				
+				//Prints a rounded version of the range to the user and frees dynamic array of values
+				printf("%*s", (int)width, statprint);
+				free(intarray);
+			}//End of for
+			
+		}//End of else if
 		
 		//Prints each player's statistics if any players left
 		else{
@@ -838,4 +830,3 @@ void printStatistics(struct Player* turns){
 	printf("\n");
 	
 }//End of printStatistics
-
