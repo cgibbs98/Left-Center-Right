@@ -21,64 +21,53 @@ int max(int a, int b){
 }//End of max
 
 //Average function to calculate average of stats
-double average(int* array, int max){
+double average(Player* turns, int index, int count){
 	
 	//Uses a loop to calculate average and divides it by size before returning it to the user
 	double avg = 0;
 	int i = 0;
-	for(i = 0; i < max; i++){
-		avg += array[i];
+	for(i = 0; i < count; i++){
+		avg += turns[i].stats[index];
 	}//End of for
-	avg /= (double)max;
+	avg /= (double)count;
 	return avg;
 	
 }//End of average
 
 //Median function to calculate median of stats
-double median(int* array, int count){
+double median(Player* turns, int index, int count){
 	
-	//Basic insertion sort to sort array
+	//Basic insertion sort to sort each struct's current array
 	int i = 0;
 	int j = 0;
 	int key = 0;
     for(i = 1; i < count; i++) { 
-        key = array[i]; 
+        key = turns[i].stats[index]; 
         j = i-1;
-        while (j >= 0 && array[j] > key) { 
-            array[j+1] = array[j]; 
+        while (j >= 0 && turns[j].stats[index] > key) { 
+            turns[j+1].stats[index] = turns[j].stats[index]; 
             j = j-1; 
         } //End of while
-        array[j+1] = key; 
+        turns[j+1].stats[index] = key; 
     }//End of for
 	
 	//Calculates median
 	double med = 0;
 	if(count % 2 == 0){
-		med = (array[(count/2)-1] + array[(count/2)]) / (double)2;
+		med = (turns[(count/2)-1].stats[index] + turns[(count/2)].stats[index]) / (double)2;
 	}//End of if
 	else{
-		med = array[(count/2)];
+		med = turns[(count/2)].stats[index];
 	}//End of else
 	return med;
 	
 }//End of median
 
 //Range function to return range of stats
-double range(int* array, int count){
+double range(Player* turns, int index, int count){
 	
-	//Calculates range by getting min and max of array and subtracting both values
-	int min = array[0];
-	int max = array[0];
-	int i = 0;
-	for(i = 1; i < count; i++){
-		if(array[i] < min){
-			min = array[i];
-		}//End of if
-		if(array[i] > max){
-			max = array[i];
-		}//End of if
-	}//End of for
-	double range = max-min;
+	//Calculates range by getting last and first elements from already sorted array and subtracting them
+	double range = turns[count-1].stats[index] - turns[0].stats[index];
 	return range;
 	
 }//End of range

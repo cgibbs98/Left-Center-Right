@@ -6,17 +6,16 @@
 #include <unistd.h>
 
 //Included headers
+#include "player.h"
 #include "utilities.h"
 
 //Constants for fixed values that will never be changed
-#define STATCOUNT 7
-#define BORDER "-------------------------------"
-#define MAXPLAYERSIZE 26
+#define BORDER "--------------------------------"
 #define MAXDIGITS 12
 #define MAXFILELOAD 128
 const int FIXEDWIDTHS[] = {2, 18, 15, 14, 12, 13, 13, 16};
 
-//Global variables that will be changed throughout
+//Global variables that will be changed throughout including struct for each player in the simulation
 int playercount;
 int chipcount;
 int pauseenabled;
@@ -28,22 +27,7 @@ int minchiprand;
 int maxchiprand;
 int maxwidths[STATCOUNT];
 int smallname;
-
-//Struct for player which included their name and chip count
-typedef struct{
-	//Game Values
-	char name[MAXPLAYERSIZE];
-	int chips;
-	//Stats Values Array
-	int stats[STATCOUNT];
-	//stats[0] = leftcount,
-	//stats[1] = centercount,
-	//stats[2] = rightcount,
-	//stats[3] = dotcount,
-	//stats[4] = rollcount,
-	//stats[5] = turncount,
-	//stats[6] = skipcount;
-}Player;
+Player* turns;
 
 //Function Definitions
 void loadDefaults();
@@ -53,7 +37,6 @@ void changeCounts(int sel);
 void configureStartup();
 void viewInstructions();
 void resetArray();
-void getIntArray(int* array, Player* turns, int index);
 void runSim();
 void endGameMenu(Player* turns);
 void printStatistics(Player* turns);
@@ -472,17 +455,6 @@ void resetArray(){
 	
 }//End of resetArray
 
-//Function that will create and return an array of one statistic for every player
-void getIntArray(int* array, Player* turns, int index){
-	
-	//Loop that will copy index of existing array and add it to new dynamic array
-	int i = 0;
-	for(i = 0; i < playercount; i++){
-		array[i] = turns[i].stats[index];
-	}//End of for
-	
-}//End of getIntArray
-
 
 
 
@@ -501,7 +473,7 @@ void runSim(){
 	srand(time(0));
 
 	//Create players by dynamically creating array and filling out pregame counts
-	Player* turns = calloc(playercount, sizeof(Player));
+	turns = calloc(playercount, sizeof(Player));
 	int i = 0;
 	int j = 0;
 	char num[MAXDIGITS];
@@ -693,7 +665,7 @@ void endGameMenu(Player* turns){
 		//Menu text
 		printf("\nSelect a Choice Below:\n");
 		printf("\n%s", BORDER);
-		printf("\n1. Play Again");
+		printf("\n1. Run Simulation Again");
 		printf("\n2. View Statistics");
 		printf("\n3. Return to Main Menu");
 		printf("\n%s", BORDER);
@@ -743,15 +715,12 @@ void printStatistics(Player* turns){
 			//Calculates and prints each average to the screen
 			for(j = 0; j < STATCOUNT; j++){
 				
-				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
-				int* intarray = calloc(playercount, sizeof(int));
-				getIntArray(intarray, turns, j);
-				sprintf(statprint, "%.*f", maxwidths[j], average(intarray, playercount));
+				//Converts stat to string and calculates spacing needed on screen
+				sprintf(statprint, "%.*f", maxwidths[j], average(turns, j, playercount));
 				width = FIXEDWIDTHS[(j+1)];
 				
 				//Prints a rounded version of the average to the user and frees dynamic array of values
 				printf("%*s", (int)width, statprint);
-				free(intarray);
 			}//End of for
 			
 		}//End of if
@@ -765,15 +734,12 @@ void printStatistics(Player* turns){
 			//Calculates and prints each median to the screen
 			for(j = 0; j < STATCOUNT; j++){
 				
-				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
-				int* intarray = calloc(playercount, sizeof(int));
-				getIntArray(intarray, turns, j);
-				sprintf(statprint, "%.*f", maxwidths[j], median(intarray, playercount));
+				//Converts stat to string and calculates spacing needed on screen
+				sprintf(statprint, "%.*f", maxwidths[j], median(turns, j, playercount));
 				width = FIXEDWIDTHS[(j+1)];
 				
 				//Prints a rounded version of the median to the user and frees dynamic array of values
 				printf("%*s", (int)width, statprint);
-				free(intarray);
 			}//End of for
 			
 		}//End of else if
@@ -787,15 +753,12 @@ void printStatistics(Player* turns){
 			//Calculates and prints each range to the screen
 			for(j = 0; j < STATCOUNT; j++){
 				
-				//Converts stat to string and calculates spacing needed on screen and retrieves dynamic array of values from current statistic
-				int* intarray = calloc(playercount, sizeof(int));
-				getIntArray(intarray, turns, j);
-				sprintf(statprint, "%.*f", maxwidths[j], range(intarray, playercount));
+				//Converts stat to string and calculates spacing needed on screen
+				sprintf(statprint, "%.*f", maxwidths[j], range(turns, j, playercount));
 				width = FIXEDWIDTHS[(j+1)];
 				
 				//Prints a rounded version of the range to the user and frees dynamic array of values
 				printf("%*s", (int)width, statprint);
-				free(intarray);
 			}//End of for
 			
 		}//End of else if
